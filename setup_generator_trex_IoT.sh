@@ -27,6 +27,27 @@ MY_MAC=$(cat /sys/class/net/$INTERFACE/address)
 PCI_ADDR=$(ethtool -i $INTERFACE | grep bus-info | awk '{print $2}')
 DRIVER=$(ethtool -i $INTERFACE | grep driver | awk '{print $2}')
 
+echo "ФОРСИРОВАННЫЙ ПОДЪЕМ ЛИНКА"
+if [ "$MODE" == "1" ]; then
+    echo "Настройка интерфейса $INTERFACE для Lab Mode..."
+    ip link set $INTERFACE up
+    ip link set $INTERFACE promisc on
+    
+    # Ждем, пока драйвер осознает реальность (актуально для VMware)
+    echo "Ожидание активации линка (Carrier)..."
+    for i in {1..5}; do
+        STATE=$(cat /sys/class/net/$INTERFACE/operstate)
+        if [ "$STATE" == "up" ] || [ "$STATE" == "unknown" ]; then
+            echo "Линк поднят! Текущее состояние: $STATE"
+            break
+        fi
+        echo "Попытка $i: линк всё еще $STATE, жду..."
+        ip link set $INTERFACE up
+        sleep 2
+    done
+fi
+
+
 echo "=== [2/6] Выбор режима работы ==="
 echo "1) Lab Mode (Software emulation, через ядро Linux)"
 echo "2) Combat Mode (DPDK-oriented, прямой доступ к железу через PCI)"
