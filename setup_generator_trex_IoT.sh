@@ -71,17 +71,6 @@ if [ "$MODE" == "2" ]; then
     - dest_mac: "ff:ff:ff:ff:ff:ff"
       src_mac:  "$MY_MAC"
 EOF
-    LAUNCH_CMD="
-#Генерация дамп-файла: 
-	python3 gen_iot_v2.py 
-# Окно 1: Запуск сервера
-	cd /opt/trex/v3.08
-	sudo ./t-rex-64 -i --software
-
-# Окно 2: Консоль управления
-	cd /opt/trex/v3.08
-	./trex-console
-	push -f /tmp/iot_traffic_v2.pcap -p 0 --force"
     echo "ВНИМАНИЕ: В Combat Mode интерфейс будет 'украден' у Linux и передан DPDK."
 else
     # Лабораторный конфиг на именах
@@ -111,9 +100,22 @@ print("PCAP готов в /tmp/iot_traffic_v2.pcap")
 EOF
 
 [ "$SUDO_USER" ] && chown $SUDO_USER:$SUDO_USER "$CURRENT_DIR/gen_iot_v2.py"
+TREX_PATH="/opt/trex/$TREX_VER_DIR"
+GEN_SCRIPT="$CURRENT_DIR/gen_iot_v2.py"
 
 echo "======================================================="
 echo "УСТАНОВКА ЗАВЕРШЕНА!"
 echo "Режим: $( [ "$MODE" == "2" ] && echo "COMBAT (DPDK)" || echo "LAB (Software)" )"
-echo "Команда запуска: $LAUNCH_CMD"
+echo "======================================================="
+echo "ИНСТРУКЦИЯ ПО ЗАПУСКУ СТЕНДА"
+echo "1. Сгенерируй трафик:"
+echo "   python3 $GEN_SCRIPT"
+echo ""
+echo "2. В ПЕРВОМ ОКНЕ запусти сервер:"
+echo "   cd $TREX_PATH && sudo ./t-rex-64 -i --software"
+echo ""
+echo "3. ВО ВТОРОМ ОКНЕ запусти управление:"
+echo "   cd $TREX_PATH && ./trex-console"
+echo "   # В консоли введи:"
+echo "   push -f /tmp/iot_traffic_v2.pcap -p 0 --force"
 echo "======================================================="
