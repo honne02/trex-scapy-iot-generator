@@ -25,7 +25,7 @@
 ### 1. Автоматическая настройка
 Скрипт `setup_diploma.sh` установит зависимости, TRex и настроит сетевой интерфейс:
 ```bash
-sudo bash scripts/setup_diploma.sh
+sudo bash setup_diploma.sh
 ```
 
 ### 2. Генерация PCAP
@@ -35,7 +35,7 @@ sudo bash scripts/setup_diploma.sh
 Bash
 
 ```
-python3 scripts/gen_iot_v2.py
+python3 gen_iot_v2.py
 ```
 
 ### 3. Запуск генерации
