@@ -27,6 +27,12 @@ MY_MAC=$(cat /sys/class/net/$INTERFACE/address)
 PCI_ADDR=$(ethtool -i $INTERFACE | grep bus-info | awk '{print $2}')
 DRIVER=$(ethtool -i $INTERFACE | grep driver | awk '{print $2}')
 
+
+echo "=== [2/6] Выбор режима работы ==="
+echo "1) Lab Mode (Software emulation, через ядро Linux)"
+echo "2) Combat Mode (DPDK-oriented, прямой доступ к железу через PCI)"
+read -p "Выбери режим (1 или 2): " MODE
+
 echo "ФОРСИРОВАННЫЙ ПОДЪЕМ ЛИНКА"
 if [ "$MODE" == "1" ]; then
     echo "Настройка интерфейса $INTERFACE для Lab Mode..."
@@ -46,12 +52,6 @@ if [ "$MODE" == "1" ]; then
         sleep 2
     done
 fi
-
-
-echo "=== [2/6] Выбор режима работы ==="
-echo "1) Lab Mode (Software emulation, через ядро Linux)"
-echo "2) Combat Mode (DPDK-oriented, прямой доступ к железу через PCI)"
-read -p "Выбери режим (1 или 2): " MODE
 
 echo "=== [3/6] Установка зависимостей и TRex ==="
 apt update && apt install -y python3-scapy tcpdump wget tar ethtool
