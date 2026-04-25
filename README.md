@@ -1,4 +1,4 @@
-# IoT Traffic Generation Node (Diploma Project)
+# IoT Traffic Generation Node
 
 Программный комплекс для генерации специфического трафика Интернета вещей (IoT) на базе **Cisco TRex** и **Scapy**. Разработано в рамках дипломного проекта по теме: *"Разработка узла генерации трафика на модельной сети"*.
 
@@ -23,9 +23,9 @@
 ## ⚡ Быстрый старт
 
 ### 1. Автоматическая настройка
-Скрипт `setup_diploma.sh` установит зависимости, TRex и настроит сетевой интерфейс:
+Скрипт `setup_generator_trex_IoT.sh` установит зависимости, TRex и настроит сетевой интерфейс:
 ```bash
-sudo bash setup_diploma.sh
+sudo bash setup_generator_trex_IoT.sh
 ```
 
 ### 2. Генерация PCAP
