@@ -46,18 +46,18 @@ ask_insecure_download_permission() {
 
 http_get_text() {
   local url="$1"
-  if curl -fsSL "$url" 2>/dev/null; then
+  if curl -fsSL "$url" 2>/dev/null | tr -d '\000'; then
     return 0
   fi
 
   warn "curl не смог получить $url по HTTPS с проверкой сертификата"
-  if wget -qO- "$url" 2>/dev/null; then
+  if wget -qO- "$url" 2>/dev/null | tr -d '\000'; then
     return 0
   fi
 
   if ask_insecure_download_permission; then
     warn "Пробую небезопасный fallback для $url"
-    wget --no-check-certificate -qO- "$url"
+    wget --no-check-certificate -qO- "$url" 2>/dev/null | tr -d '\000'
     return 0
   fi
 
@@ -66,7 +66,7 @@ http_get_text() {
 
 get_latest_trex_version() {
   local latest_url version
-  latest_url=$(http_get_text "$TREX_BASE_URL/latest" | tr -d '\r\n') || return 1
+  latest_url=$(http_get_text "$TREX_BASE_URL/latest" | tr -d '\000\r\n') || return 1
   version=$(basename "$latest_url")
   version=${version%.tar.gz}
   [[ -n "$version" ]] || return 1
