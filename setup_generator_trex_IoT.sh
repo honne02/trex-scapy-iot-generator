@@ -11,6 +11,7 @@ MODE="lab"
 TREX_VERSION=""
 TREX_ARCHIVE_URL=""
 TREX_DIR=""
+ALLOW_INSECURE_TREX_DOWNLOAD="ask"
 
 SUPPORTED_TREX_DRIVERS_REGEX='^(ixgbe|i40e|ice|igb|mlx5_core|mlx4_core|bnxt_en|enic|vfio-pci|uio_pci_generic|igc)$'
 
@@ -26,11 +27,46 @@ install_base_packages() {
   log "Устанавливаю базовые зависимости"
   apt update
   apt install -y ca-certificates curl python3 python3-pip python3-scapy tcpdump wget tar iproute2 ethtool pciutils lshw
+  update-ca-certificates || true
+}
+
+ask_insecure_download_permission() {
+  local ans
+  if [[ "$ALLOW_INSECURE_TREX_DOWNLOAD" == "always" ]]; then
+    return 0
+  fi
+  if [[ "$ALLOW_INSECURE_TREX_DOWNLOAD" == "never" ]]; then
+    return 1
+  fi
+
+  warn "У сервера TRex/Cisco бывают проблемы с TLS-цепочкой, из-за чего curl/wget не могут проверить сертификат"
+  read -r -p "Разрешить fallback-загрузку без проверки сертификата только для trex-tgn.cisco.com? [y/N] " ans
+  [[ "${ans,,}" =~ ^y(es)?$ ]]
+}
+
+http_get_text() {
+  local url="$1"
+  if curl -fsSL "$url" 2>/dev/null; then
+    return 0
+  fi
+
+  warn "curl не смог получить $url по HTTPS с проверкой сертификата"
+  if wget -qO- "$url" 2>/dev/null; then
+    return 0
+  fi
+
+  if ask_insecure_download_permission; then
+    warn "Пробую небезопасный fallback для $url"
+    wget --no-check-certificate -qO- "$url"
+    return 0
+  fi
+
+  return 1
 }
 
 get_latest_trex_version() {
   local latest_url version
-  latest_url=$(curl -fsSL "$TREX_BASE_URL/latest" | tr -d '\r\n') || return 1
+  latest_url=$(http_get_text "$TREX_BASE_URL/latest" | tr -d '\r\n') || return 1
   version=$(basename "$latest_url")
   version=${version%.tar.gz}
   [[ -n "$version" ]] || return 1
@@ -190,12 +226,34 @@ prepare_interfaces() {
   fi
 }
 
+download_trex_archive() {
+  local dst="$1"
+
+  if curl -fL "$TREX_ARCHIVE_URL" -o "$dst"; then
+    return 0
+  fi
+
+  warn "curl не смог скачать архив TRex с проверкой сертификата"
+  if wget -O "$dst" "$TREX_ARCHIVE_URL"; then
+    return 0
+  fi
+
+  if ask_insecure_download_permission; then
+    warn "Пробую скачать TRex без проверки сертификата (--no-check-certificate)"
+    wget --no-check-certificate -O "$dst" "$TREX_ARCHIVE_URL" && return 0
+  fi
+
+  return 1
+}
+
 install_trex() {
   log "Скачиваю TRex $TREX_VERSION"
   mkdir -p "$TREX_DIR"
   cd "$TREX_DIR"
   rm -f trex.tar.gz
-  curl -fL "$TREX_ARCHIVE_URL" -o trex.tar.gz || die "Не удалось скачать $TREX_ARCHIVE_URL"
+
+  download_trex_archive trex.tar.gz || die "Не удалось скачать $TREX_ARCHIVE_URL"
+
   tar -xzvf trex.tar.gz --strip-components=1
   chmod -R 755 "$TREX_DIR"
   ln -sfn "$TREX_DIR" /opt/trex-current
