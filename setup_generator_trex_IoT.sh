@@ -93,7 +93,6 @@ else
     - dest_mac: "ff:ff:ff:ff:ff:ff"
       src_mac:  "$MY_MAC"
 EOF
-    LAUNCH_CMD="sudo ./t-rex-64 -i --software"
 fi
 
 echo "=== [5/6] Создание генератора в папке проекта ==="
