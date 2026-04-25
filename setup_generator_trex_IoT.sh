@@ -12,6 +12,8 @@ TREX_VERSION=""
 TREX_ARCHIVE_URL=""
 TREX_DIR=""
 ALLOW_INSECURE_TREX_DOWNLOAD="ask"
+NETWORK_CONNECT_TIMEOUT=10
+NETWORK_MAX_TIME=30
 
 SUPPORTED_TREX_DRIVERS_REGEX='^(ixgbe|i40e|ice|igb|mlx5_core|mlx4_core|bnxt_en|enic|vfio-pci|uio_pci_generic|igc)$'
 
@@ -46,18 +48,18 @@ ask_insecure_download_permission() {
 
 http_get_text() {
   local url="$1"
-  if curl -fsSL "$url" 2>/dev/null | tr -d '\000'; then
+  if curl --connect-timeout "$NETWORK_CONNECT_TIMEOUT" --max-time "$NETWORK_MAX_TIME" -fsSL "$url" 2>/dev/null | tr -d '\000'; then
     return 0
   fi
 
   warn "curl не смог получить $url по HTTPS с проверкой сертификата"
-  if wget -qO- "$url" 2>/dev/null | tr -d '\000'; then
+  if wget --timeout="$NETWORK_CONNECT_TIMEOUT" --tries=1 -qO- "$url" 2>/dev/null | tr -d '\000'; then
     return 0
   fi
 
   if ask_insecure_download_permission; then
     warn "Пробую небезопасный fallback для $url"
-    wget --no-check-certificate -qO- "$url" 2>/dev/null | tr -d '\000'
+    wget --timeout="$NETWORK_CONNECT_TIMEOUT" --tries=1 --no-check-certificate -qO- "$url" 2>/dev/null | tr -d '\000'
     return 0
   fi
 
@@ -229,18 +231,19 @@ prepare_interfaces() {
 download_trex_archive() {
   local dst="$1"
 
-  if curl -fL "$TREX_ARCHIVE_URL" -o "$dst"; then
+  if curl --connect-timeout "$NETWORK_CONNECT_TIMEOUT" --max-time 0 -fL "$TREX_ARCHIVE_URL" -o "$dst"; then
     return 0
   fi
 
   warn "curl не смог скачать архив TRex с проверкой сертификата"
-  if wget -O "$dst" "$TREX_ARCHIVE_URL"; then
+  if wget --timeout="$NETWORK_CONNECT_TIMEOUT" --tries=1 -O "$dst" "$TREX_ARCHIVE_URL"; then
     return 0
   fi
 
   if ask_insecure_download_permission; then
     warn "Пробую скачать TRex без проверки сертификата (--no-check-certificate)"
-    wget --no-check-certificate -O "$dst" "$TREX_ARCHIVE_URL" && return 0
+    echo "[+] Выполняю fallback-загрузку TRex без проверки сертификата..."
+    wget --timeout="$NETWORK_CONNECT_TIMEOUT" --tries=1 --progress=bar:force --no-check-certificate -O "$dst" "$TREX_ARCHIVE_URL" && return 0
   fi
 
   return 1
