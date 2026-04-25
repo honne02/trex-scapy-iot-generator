@@ -44,9 +44,11 @@ Bash
 
 ```
 # Окно 1: Запуск сервера
+cd /opt/trex/v3.08
 sudo ./t-rex-64 -i --software
 
 # Окно 2: Консоль управления
+cd /opt/trex/v3.08
 ./trex-console
 push -f /tmp/iot_traffic_v2.pcap -p 0 --force
 ```
