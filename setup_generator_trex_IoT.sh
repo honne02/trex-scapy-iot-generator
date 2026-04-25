@@ -21,6 +21,20 @@ log() { echo -e "\n[+] $*"; }
 warn() { echo -e "[!] $*"; }
 die() { echo -e "[x] $*" >&2; exit 1; }
 
+
+read_tty() {
+  local __var_name="$1"
+  local __prompt="$2"
+  local __value=""
+  if [[ -r /dev/tty ]]; then
+    read -r -p "$__prompt" __value < /dev/tty
+  else
+    read -r -p "$__prompt" __value
+  fi
+  printf -v "$__var_name" '%s' "$__value"
+}
+
+
 require_root() {
   [[ ${EUID:-$(id -u)} -eq 0 ]] || die "Запусти скрипт через sudo или от root"
 }
@@ -42,7 +56,7 @@ ask_insecure_download_permission() {
   fi
 
   warn "У сервера TRex/Cisco бывают проблемы с TLS-цепочкой, из-за чего curl/wget не могут проверить сертификат"
-  read -r -p "Разрешить fallback-загрузку без проверки сертификата только для trex-tgn.cisco.com? [y/N] " ans
+  read_tty ans "Разрешить fallback-загрузку без проверки сертификата только для trex-tgn.cisco.com? [y/N] "
   [[ "${ans,,}" =~ ^y(es)?$ ]]
 }
 
@@ -79,15 +93,15 @@ pick_trex_version() {
   local detected chosen
   if detected=$(get_latest_trex_version); then
     echo "Найдена актуальная версия TRex: $detected"
-    read -r -p "Использовать её? [Y/n/custom] " chosen
+    read_tty chosen "Использовать её? [Y/n/custom] "
     case "${chosen,,}" in
       ""|y|yes) TREX_VERSION="$detected" ;;
-      n|no|custom|c) read -r -p "Введи нужную версию вручную (например v3.08): " TREX_VERSION ;;
+      n|no|custom|c) read_tty TREX_VERSION "Введи нужную версию вручную (например v3.08): " ;;
       *) warn "Непонятный ответ, беру автоопределённую версию: $detected"; TREX_VERSION="$detected" ;;
     esac
   else
     warn "Не удалось автоматически определить последнюю версию TRex"
-    read -r -p "Введи версию вручную (например v3.08): " TREX_VERSION
+    read_tty TREX_VERSION "Введи версию вручную (например v3.08): "
   fi
 
   TREX_ARCHIVE_URL="$TREX_BASE_URL/${TREX_VERSION}.tar.gz"
@@ -99,7 +113,7 @@ choose_mode() {
   echo "Выбери режим настройки TRex:"
   echo "  1) lab     - упрощённый лабораторный режим (Linux IF, dummy допустим)"
   echo "  2) prod    - боевой DPDK-ориентированный режим (PCI, проверка NIC, расширенный trex_cfg.yaml)"
-  read -r -p "Выбор [1/2, по умолчанию 1]: " mode_choice
+  read_tty mode_choice "Выбор [1/2, по умолчанию 1]: "
   case "${mode_choice:-1}" in
     1) MODE="lab" ;;
     2) MODE="prod" ;;
@@ -153,11 +167,11 @@ choose_interfaces() {
   declare -gA IFACE_LIST=()
   show_interfaces_detailed
   echo
-  read -r -p "Выбери основной интерфейс по номеру: " idx1
+  read_tty idx1 "Выбери основной интерфейс по номеру: "
   [[ -n "${IFACE_LIST[$idx1]:-}" ]] || die "Некорректный выбор основного интерфейса"
   PRIMARY_IFACE="${IFACE_LIST[$idx1]}"
 
-  read -r -p "Выбери второй интерфейс по номеру или Enter для dummy: " idx2
+  read_tty idx2 "Выбери второй интерфейс по номеру или Enter для dummy: "
   if [[ -n "$idx2" ]]; then
     [[ -n "${IFACE_LIST[$idx2]:-}" ]] || die "Некорректный выбор второго интерфейса"
     SECONDARY_IFACE="${IFACE_LIST[$idx2]}"
@@ -192,7 +206,7 @@ validate_iface_for_trex() {
     warn "Драйвер $driver для интерфейса $iface не входит в типичный список совместимых для TRex/DPDK"
     warn "Это не жёсткий запрет, но для prod-режима лучше использовать поддерживаемый NIC"
     if [[ "$MODE" == "prod" ]]; then
-      read -r -p "Продолжить несмотря на предупреждение? [y/N] " ans
+      read_tty ans "Продолжить несмотря на предупреждение? [y/N] "
       [[ "${ans,,}" =~ ^y(es)?$ ]] || die "Остановлено из-за потенциально неподходящего интерфейса $iface"
     fi
   fi
@@ -294,9 +308,9 @@ create_trex_cfg_prod() {
   threads=$(cpu_thread_list)
   log "Создаю боевую DPDK-ориентированную конфигурацию $TREX_CFG_FILE"
 
-  read -r -p "Введи dest_mac для PRIMARY_IFACE ($PRIMARY_IFACE), подключённого к DUT: " PRIMARY_DEST_MAC
-  read -r -p "Введи dest_mac для SECONDARY_IFACE ($SECONDARY_IFACE), подключённого к DUT: " SECONDARY_DEST_MAC
-  read -r -p "NUMA socket для dual_if [0]: " NUMA_SOCKET
+  read_tty PRIMARY_DEST_MAC "Введи dest_mac для PRIMARY_IFACE ($PRIMARY_IFACE), подключённого к DUT: "
+  read_tty SECONDARY_DEST_MAC "Введи dest_mac для SECONDARY_IFACE ($SECONDARY_IFACE), подключённого к DUT: "
+  read_tty NUMA_SOCKET "NUMA socket для dual_if [0]: "
   NUMA_SOCKET=${NUMA_SOCKET:-0}
 
   cat > "$TREX_CFG_FILE" <<EOF_CFG
