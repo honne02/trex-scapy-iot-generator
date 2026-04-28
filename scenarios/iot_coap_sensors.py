@@ -6,7 +6,8 @@ import sys
 def run(mac):
     pkts = []
     for i in range(1, 101):
-        p = (Ether(src=mac, dst="ff:ff:ff:ff:ff:ff") / 
+        sensor_mac = RandMAC()
+        p = (Ether(src=sensor_mac, dst="ff:ff:ff:ff:ff:ff") / 
              IP(src=f"10.0.0.{i}", dst="192.168.1.100") / 
              UDP(sport=5683, dport=5683) / 
              Raw(load=b"\x40\x01\x12\x34\xbb\x74\x65\x6d\x70\x3d\x32\x32"))
