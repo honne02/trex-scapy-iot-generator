@@ -124,16 +124,16 @@ push -f /tmp/iot_traffic_v2.pcap -p 0 --force
 
 ```
 trex-scapy-iot-generator/
-├── README.md                      # Документация проекта
-├── setup_generator_trex_IoT.sh    # Скрипт автоматической установки
-├── gen_iot_v2.py                  # Генератор PCAP (создается при установке)
-├── scenarios/                     # Готовые сценарии генерации трафика
-│   ├── iot_coap_sensors.py        # Сценарий 1: CoAP датчики (100 устройств)
-│   ├── iot_mqtt_telemetry.py      # Сценарий 2: MQTT телеметрия (50 устройств)
-│   ├── iot_industrial_modbus.py   # Сценарий 3: Modbus/TCP промышленность (30 контроллеров)
-│   ├── iot_firmware_update.py     # Сценарий 4: OTA обновления (50 устройств)
+├── README.md                       # Документация проекта
+├── setup_generator_trex_IoT.sh     # Скрипт автоматической установки
+├── gen_iot_v2.py                   # Генератор PCAP (создается при установке)
+├── scenarios/                      # Готовые сценарии генерации трафика
+│   ├── iot_coap_sensors.py         # Сценарий 1: CoAP датчики (100 устройств)
+│   ├── iot_mqtt_telemetry.py       # Сценарий 2: MQTT телеметрия (50 устройств)
+│   ├── iot_industrial_modbus.py    # Сценарий 3: Modbus/TCP промышленность (30 контроллеров)
+│   ├── iot_firmware_update.py      # Сценарий 4: OTA обновления (50 устройств)
 │   └── iot_combined_stress_test.py # Сценарий 5: Комбинированный стресс-тест (150 устройств)
-└── screenshot/                    # Скриншоты результатов работы
+└── screenshot/                     # Скриншоты результатов работы
     ├── Статус сервера до.png
     ├── Статус сервера после.png
     ├── Панель управления до.png
