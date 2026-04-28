@@ -126,7 +126,6 @@ push -f /tmp/iot_traffic_v2.pcap -p 0 --force
 trex-scapy-iot-generator/
 ├── README.md                       # Документация проекта
 ├── setup_generator_trex_IoT.sh     # Скрипт автоматической установки
-├── gen_iot_v2.py                   # Генератор PCAP (создается при установке)
 ├── scenarios/                      # Готовые сценарии генерации трафика
 │   ├── iot_coap_sensors.py         # Сценарий 1: CoAP датчики (100 устройств)
 │   ├── iot_mqtt_telemetry.py       # Сценарий 2: MQTT телеметрия (50 устройств)
