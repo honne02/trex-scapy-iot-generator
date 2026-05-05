@@ -1,5 +1,5 @@
 # Сценарий Stateful: Эмуляция HTTP-трафика IoT-устройств (Handshake + L7 Data Exchange) для верификации DPI.
-from trex_astf_lib.api import *
+from trex.astf.api import *
 
 class Prof1:
     def __init__(self):
@@ -16,15 +16,13 @@ class Prof1:
         prog_s.recv(len(b"GET /config.json HTTP/1.1\r\nHost: iot-server.local\r\n\r\n"))
         prog_s.send(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"status\":\"ok\"}")
 
-        # 3. Шаблоны TCP сессии (убран ошибочный аргумент ip_proto)
+        # 3. Шаблоны TCP сессии
         temp_c = ASTFTCPClientTemplate(program=prog_c, port=80)
         temp_s = ASTFTCPServerTemplate(program=prog_s)
         template = ASTFTemplate(client_template=temp_c, server_template=temp_s)
 
-        # 4. Генератор IP-адресов (явное разделение пулов)
-        # Клиенты: имитируем 254 уникальных устройства
+        # 4. Генератор IP-адресов
         ip_gen_c = ASTFIPGenDist(ip_range=["16.0.0.1", "16.0.0.255"], distribution="seq")
-        # Сервер: один целевой адрес
         ip_gen_s = ASTFIPGenDist(ip_range=["48.0.0.1", "48.0.0.1"], distribution="seq")
         
         ip_gen = ASTFIPGen(glob=ASTFIPGenGlobal(), dist_client=ip_gen_c, dist_server=ip_gen_s)
