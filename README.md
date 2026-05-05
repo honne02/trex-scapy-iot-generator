@@ -60,6 +60,7 @@ push -f /tmp/iot_traffic.pcap -p 0 --force
 - **MQTT** для тестирования подписочных сервисов
 - **Modbus/TCP** для тестирования критичного промышленного трафика
 - **OTA** для тестирования высоконагруженного трафика обновлений
+- **ASTF HTTP** для тестирования stateful HTTP трафика и DPI верификации
 
 ## Запуск генератора
 
@@ -131,7 +132,8 @@ trex-scapy-iot-generator/
 │   ├── iot_mqtt_telemetry.py       # Сценарий 2: MQTT телеметрия (50 устройств)
 │   ├── iot_industrial_modbus.py    # Сценарий 3: Modbus/TCP промышленность (30 контроллеров)
 │   ├── iot_firmware_update.py      # Сценарий 4: OTA обновления (50 устройств)
-│   └── iot_combined_stress_test.py # Сценарий 5: Комбинированный стресс-тест (150 устройств)
+│   ├── iot_combined_stress_test.py # Сценарий 5: Комбинированный стресс-тест (150 устройств)
+│   └── iot_stateful_http.py        # Сценарий 6: ASTF HTTP (255 клиентов stateful)
 └── screenshot/                     # Скриншоты результатов работы
     ├── Статус сервера до.png
     ├── Статус сервера после.png
@@ -246,7 +248,52 @@ python3 scenarios/iot_combined_stress_test.py <MAC-адрес>
 
 ---
 
-## Дополнительные команды
+### Сценарий 6: ASTF HTTP IoT (iot_stateful_http.py)
+
+**Описание:** Эмуляция stateful HTTP-трафика с полным TCP handshake и L7 (Application Layer) взаимодействием между 255 IoT-клиентами и центральным сервером. Использует TRex ASTF API для создания реалистичного трафика с полным жизненным циклом сессии.
+
+**Характеристики:**
+- **Количество клиентов:** 255
+- **Протокол:** TCP HTTP (порт 80)
+- **IP-адреса источников (клиенты):** 16.0.0.1 - 16.0.0.255
+- **IP-адрес назначения (сервер):** 48.0.0.1
+- **HTTP запрос:** GET /config.json (реалистичный URL для IoT конфигурации)
+- **HTTP ответ:** 200 OK с JSON-телом `{"status":"ok"}`
+- **Особенности:** 
+  - Полный TCP handshake (SYN, SYN-ACK, ACK)
+  - Realtime L7 взаимодействие (запрос-ответ)
+  - Verifikacija DPI (Deep Packet Inspection)
+- **Использование:** Тестирование stateful трафика, проверка HTTP парсеров, анализ L7-фильтрации, верификация DPI-обработчиков
+
+**Запуск с TRex:**
+```bash
+# Метод 1: Использование TRex CLI
+cd /opt/trex/v3.08
+./trex-console
+tui    # или запуск профиля напрямую
+start -f /path/to/iot_stateful_http.py -m 1 -d 10
+
+# Метод 2: Прямой запуск через Python API
+python3 -c "
+import sys
+sys.path.append('/opt/trex/v3.08/automation/trex_control_plane/interactive')
+from trex.astf.trex_astf_client import ASTFClient
+
+client = ASTFClient()
+client.connect()
+client.load_profile('/path/to/iot_stateful_http.py')
+client.start(duration=10)
+client.wait_on_traffic()
+client.disconnect()
+"
+```
+
+Параметры:
+- `-f` - путь к профилю Python
+- `-m` - множитель нагрузки (1 = база, 2 = двойная нагрузка)
+- `-d` - длительность теста в секундах
+
+---
 
 ### Проверка статуса интерфейса
 
