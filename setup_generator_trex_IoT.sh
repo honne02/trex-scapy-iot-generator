@@ -19,16 +19,34 @@ read -p "Твой выбор: " START_MODE
 echo "=== [2/6] Сканирование интерфейсов ==="
 INTERFACES=($(ls /sys/class/net | grep -v "lo"))
 
-echo "Доступные интерфейсы:"
-for i in "${!INTERFACES[@]}"; do
-    DRIVER=$(ethtool -i ${INTERFACES[$i]} | grep driver | awk '{print $2}')
-    echo "$((i+1))) ${INTERFACES[$i]} [Driver: $DRIVER]"
-done
+list_interfaces() {
+    for i in "${!INTERFACES[@]}"; do
+        DRIVER=$(ethtool -i ${INTERFACES[$i]} | grep driver | awk '{print $2}')
+        echo "$((i+1))) ${INTERFACES[$i]} [Driver: $DRIVER]"
+    done
+}
 
-read -p "Выбери номер интерфейса: " IFACE_NUM
-INTERFACE=${INTERFACES[$((IFACE_NUM-1))]}
-MY_MAC=$(cat /sys/class/net/$INTERFACE/address)
-PCI_ADDR=$(ethtool -i $INTERFACE | grep bus-info | awk '{print $2}')
+echo "--- Выбор ПЕРВОГО интерфейса (Port 0) ---"
+list_interfaces
+read -p "Выбери номер: " IFACE_NUM
+INTERFACE1=${INTERFACES[$((IFACE_NUM-1))]}
+MY_MAC1=$(cat /sys/class/net/$INTERFACE1/address)
+PCI_ADDR1=$(ethtool -i $INTERFACE1 | grep bus-info | awk '{print $2}')
+
+echo "--- Выбор ВТОРОГО интерфейса (Port 1) ---"
+list_interfaces
+echo "0) dummy (использовать программную заглушку)"
+read -p "Выбери номер или 0: " IFACE_NUM2
+
+if [ "$IFACE_NUM2" == "0" ]; then
+    INTERFACE2="dummy"
+    echo "Режим: Один интерфейс + заглушка"
+else
+    INTERFACE2=${INTERFACES[$((IFACE_NUM2-1))]}
+    MY_MAC2=$(cat /sys/class/net/$INTERFACE2/address)
+    PCI_ADDR2=$(ethtool -i $INTERFACE2 | grep bus-info | awk '{print $2}')
+    echo "Режим: Back-to-Back ($INTERFACE1 <-> $INTERFACE2)"
+fi
 
 if [ "$START_MODE" == "2" ]; then
     echo "=== [3/6] Установка зависимостей и TRex ==="
@@ -57,36 +75,50 @@ echo "1) Lab Mode (Software emulation, через ядро Linux)"
 echo "2) Combat Mode (DPDK-oriented, прямой доступ к железу через PCI)"
 read -p "Выбери режим (1 или 2): " MODE
 
+# Настройка интерфейсов в Lab Mode
 if [ "$MODE" == "1" ]; then
-    ip link set $INTERFACE up
-    ip link set $INTERFACE promisc on
+    ip link set $INTERFACE1 up
+    ip link set $INTERFACE1 promisc on
+    if [ "$INTERFACE2" != "dummy" ]; then
+        ip link set $INTERFACE2 up
+        ip link set $INTERFACE2 promisc on
+    fi
 fi
 
-# Обновляем конфиг /etc/trex_cfg.yaml
-if [ "$MODE" == "2" ]; then
+# Генерация /etc/trex_cfg.yaml
+if [ "$INTERFACE2" == "dummy" ]; then
+    # Режим с заглушкой
+    IF_LIST="[\"$INTERFACE1\", \"dummy\"]"
+    [ "$MODE" == "2" ] && IF_LIST="[\"$PCI_ADDR1\", \"dummy\"]"
+    
     cat <<EOF > /etc/trex_cfg.yaml
 - port_limit: 2
   version: 2
-  interfaces: ["$PCI_ADDR", "dummy"]
+  interfaces: $IF_LIST
   port_info:
     - dest_mac: "ff:ff:ff:ff:ff:ff"
-      src_mac:  "$MY_MAC"
+      src_mac:  "$MY_MAC1"
 EOF
 else
+    # Режим Back-to-Back (один в другой)
+    IF_LIST="[\"$INTERFACE1\", \"$INTERFACE2\"]"
+    [ "$MODE" == "2" ] && IF_LIST="[\"$PCI_ADDR1\", \"$PCI_ADDR2\"]"
+
     cat <<EOF > /etc/trex_cfg.yaml
 - port_limit: 2
   version: 2
-  interfaces: ["$INTERFACE", "dummy"]
+  interfaces: $IF_LIST
   port_info:
-    - dest_mac: "ff:ff:ff:ff:ff:ff"
-      src_mac:  "$MY_MAC"
+    - dest_mac: "$MY_MAC2"
+      src_mac:  "$MY_MAC1"
+    - dest_mac: "$MY_MAC1"
+      src_mac:  "$MY_MAC2"
 EOF
 fi
 
 cd $LAUNCH_DIR
 
 echo "=== [5/6] ДИНАМИЧЕСКИЙ ВЫБОР СЦЕНАРИЯ ==="
-# Собираем список из обеих папок
 FILES=($(ls $SCENARIO_DIR/*.py $BENCHMARK_DIR/*.py 2>/dev/null))
 
 echo "Доступные сценарии и тесты:"
@@ -101,28 +133,27 @@ SELECTED_SCRIPT=${FILES[$((FILE_NUM-1))]}
 SCRIPT_NAME=$(basename "$SELECTED_SCRIPT")
 SCRIPT_PATH=$(dirname "$SELECTED_SCRIPT")
 
-# ЛОГИКА РАЗДЕЛЕНИЯ РЕЖИМОВ
+# ЛОГИКА ПОДГОТОВКИ ТРАФИКА
 MODE_TYPE="STL"
 if [[ "$SCRIPT_NAME" == *"stateful"* ]]; then
     MODE_TYPE="ASTF"
     echo "Выбран профиль Stateful (ASTF). Генерация PCAP не требуется."
 elif [[ "$SCRIPT_PATH" == *"benchmarks"* ]]; then
     MODE_TYPE="BENCH"
-    echo "Выбран автоматизированный тест RFC 2544. Подготовка окружения..."
-    # Для теста задержки нужны два файла, генерируем их
-    python3 "$SCENARIO_DIR/iot_load_bidirectional.py" "$MY_MAC"
-    python3 "$SCENARIO_DIR/iot_industrial_modbus.py" "$MY_MAC"
-    mv /tmp/iot_traffic.pcap /tmp/iot_modbus.pcap
+    echo "Выбран автоматизированный тест RFC 2544. Подготовка PCAP..."
+    python3 "$SCENARIO_DIR/iot_load_bidirectional.py" "$MY_MAC1"
+    python3 "$SCENARIO_DIR/iot_industrial_modbus.py" "$MY_MAC1"
+    mv -f /tmp/iot_traffic.pcap /tmp/iot_modbus.pcap
 else
     MODE_TYPE="STL"
     echo "Выбран профиль Stateless (STL). Запуск генерации PCAP..."
-    python3 "$SELECTED_SCRIPT" "$MY_MAC"
+    python3 "$SELECTED_SCRIPT" "$MY_MAC1"
     [ -f /tmp/iot_traffic.pcap ] && chown $SUDO_USER:$SUDO_USER /tmp/iot_traffic.pcap
 fi
 
 echo "======================================================="
-echo "УСТАНОВКА ЗАВЕРШЕНА!"
-echo "Режим стенда: $MODE_TYPE"
+echo "НАСТРОЙКА ЗАВЕРШЕНА!"
+echo "Режим: $MODE_TYPE | Конфигурация: $INTERFACE1 + $INTERFACE2"
 echo "======================================================="
 
 echo "ИНСТРУКЦИЯ ПО ЗАПУСКУ:"

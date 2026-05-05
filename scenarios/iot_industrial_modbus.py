@@ -1,4 +1,3 @@
-# scenarios/iot_industrial_modbus.py
 # Сценарий: Имитация промышленного трафика (Modbus/TCP) для замера Latency
 from scapy.all import *
 from scapy.layers.inet import IP, TCP, Ether

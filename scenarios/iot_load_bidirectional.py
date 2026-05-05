@@ -1,4 +1,3 @@
-# scenarios/iot_load_bidirectional.py
 from scapy.all import *
 from scapy.layers.inet import IP, UDP, TCP, Ether
 import sys
