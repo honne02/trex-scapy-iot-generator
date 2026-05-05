@@ -1,33 +1,36 @@
 # Сценарий Stateful: Эмуляция HTTP-трафика IoT-устройств (Handshake + L7 Data Exchange) для верификации DPI.
-from trex.astf.api import *
+from trex_astf_lib.api import *
 
 class Prof1:
     def __init__(self):
         pass
 
     def get_profile(self, **kwargs):
-        # Описываем L7-поведение клиента
+        # 1. Описываем L7-поведение клиента
         prog_c = ASTFProgram()
         prog_c.send(b"GET /config.json HTTP/1.1\r\nHost: iot-server.local\r\n\r\n")
-        prog_c.recv(100) 
+        prog_c.recv(50) 
 
-        # Описываем L7-поведение сервера
+        # 2. Описываем L7-поведение сервера
         prog_s = ASTFProgram()
         prog_s.recv(len(b"GET /config.json HTTP/1.1\r\nHost: iot-server.local\r\n\r\n"))
         prog_s.send(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"status\":\"ok\"}")
 
-        # Шаблоны TCP сессии
-        temp_c = ASTFTCPClientTemplate(program=prog_c, ip_proto=6, port=80)
+        # 3. Шаблоны TCP сессии (убран ошибочный аргумент ip_proto)
+        temp_c = ASTFTCPClientTemplate(program=prog_c, port=80)
         temp_s = ASTFTCPServerTemplate(program=prog_s)
         template = ASTFTemplate(client_template=temp_c, server_template=temp_s)
 
-        # Генератор IP-адресов (имитация пула устройств)
-        ip_gen = ASTFIPGen(dist="rand",
-                           ip_range=["16.0.0.1", "16.0.0.255"], 
-                           distribution="seq")
+        # 4. Генератор IP-адресов (явное разделение пулов)
+        # Клиенты: имитируем 254 уникальных устройства
+        ip_gen_c = ASTFIPGenDist(ip_range=["16.0.0.1", "16.0.0.255"], distribution="seq")
+        # Сервер: один целевой адрес
+        ip_gen_s = ASTFIPGenDist(ip_range=["48.0.0.1", "48.0.0.1"], distribution="seq")
+        
+        ip_gen = ASTFIPGen(glob=ASTFIPGenGlobal(), dist_client=ip_gen_c, dist_server=ip_gen_s)
         
         return ASTFProfile(default_ip_gen=ip_gen, templates=[template])
 
-# Функция регистрации профиля, необходимая для TRex
+# Функция регистрации профиля для TRex
 def register():
     return Prof1()
