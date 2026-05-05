@@ -45,7 +45,7 @@ sudo bash setup_generator_trex_IoT.sh
 
 ### Использование сценариев с TRex
 
-Каждый сценарий генерирует PCAP-файл в `/tmp/iot_traffic.pcap`, который можно передать в TRex для воспроизведения:
+Большинство stateless-сценариев генерируют PCAP-файл в `/tmp/iot_traffic.pcap`, который можно передать в TRex для воспроизведения. Исключения: сценарий 7 пишет `/tmp/iot_load_bidirectional.pcap`, а RFC 2544 benchmark дополнительно ожидает контрольный Modbus-файл `/tmp/iot_modbus.pcap`.
 
 ```bash
 # Генерируем трафик сценария
@@ -89,7 +89,7 @@ cd /opt/trex/v3.08
 В консоли TRex выполните команду для запуска генерации:
 
 ```
-push -f /tmp/iot_traffic_v2.pcap -p 0 --force
+push -f /tmp/iot_traffic.pcap -p 0 --force
 ```
 
 Параметры:
@@ -196,15 +196,17 @@ python3 scenarios/iot_mqtt_telemetry.py <MAC-адрес>
 **Характеристики:**
 - **Количество контроллеров:** 30
 - **Протокол:** Modbus/TCP (порт 502)
-- **IP-адреса источников:** 10.0.5.1 - 10.0.5.30
+- **IP-адреса источников:** 10.0.2.1 - 10.0.2.30
 - **IP-адрес назначения:** 192.168.1.100
+- **TCP-порты:** 502 → 502
 - **Функция:** Read Holding Registers (Function Code 3)
-- **Payload:** Корректный Modbus PDU с Transaction ID, Protocol ID, Unit ID
+- **Payload:** MBAP Header + PDU `Read Holding Registers` с начальным адресом `0`, чтением `10` регистров и 10 байтами padding, чтобы полезная нагрузка была больше 16 байт для TRex Latency
+- **MAC-адрес:** Можно передать явно; если аргумент не указан, используется `00:00:00:00:00:00`
 - **Использование:** Тестирование критичного промышленного трафика, анализ задержек
 
 **Запуск:**
 ```bash
-python3 scenarios/iot_industrial_modbus.py <MAC-адрес>
+python3 scenarios/iot_industrial_modbus.py [MAC-адрес]
 ```
 
 ---
@@ -351,6 +353,9 @@ python3 scenarios/iot_load_bidirectional.py aa:bb:cc:dd:ee:ff
 python3 scenarios/iot_load_bidirectional.py aa:bb:cc:dd:ee:ff
 python3 scenarios/iot_industrial_modbus.py aa:bb:cc:dd:ee:ff
 
+# Benchmark ожидает контрольный поток под отдельным именем
+cp /tmp/iot_traffic.pcap /tmp/iot_modbus.pcap
+
 # Потом запусти benchmark
 python3 benchmarks/latency_test_rfc2544.py
 ```
@@ -380,7 +385,7 @@ sudo tcpdump -i <interface> -w capture.pcap
 ### Анализ сгенерированного PCAP
 
 ```bash
-tcpdump -r /tmp/iot_traffic_v2.pcap -n
+tcpdump -r /tmp/iot_traffic.pcap -n
 ```
 
 ## Требования к системе
