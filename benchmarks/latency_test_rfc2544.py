@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# benchmarks/latency_test_rfc2544.py
 # Автоматизированный замер Latency/Jitter по методике RFC 2544 (120/60 сек)
 
 import sys
