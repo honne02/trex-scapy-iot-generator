@@ -85,22 +85,55 @@ fi
 
 # Переходим к сценариям
 cd $LAUNCH_DIR
-echo "=== [5/6] ВЫБОР СЦЕНАРИЯ ==="
+# ... (начало скрипта остается прежним до момента выбора сценария)
+
+echo "=== [5/6] ДИНАМИЧЕСКИЙ ВЫБОР СЦЕНАРИЯ ==="
 SCENARIO_DIR="./scenarios"
 FILES=($(ls $SCENARIO_DIR/*.py 2>/dev/null))
 
+echo "Доступные сценарии:"
 for i in "${!FILES[@]}"; do
-    DESC=$(head -n 1 "${FILES[$i]}" | sed 's/^#//' | xargs)
-    echo "$((i+1))) $(basename ${FILES[$i]}) >> ${DESC:-нет описания}"
+    FIRST_LINE=$(head -n 1 "${FILES[$i]}")
+    [[ $FIRST_LINE == \#* ]] && DESC=$(echo "$FIRST_LINE" | sed 's/^#//' | xargs) || DESC="нет описания"
+    echo "$((i+1))) $(basename ${FILES[$i]}) >> $DESC"
 done
 
-read -p "Номер сценария: " FILE_NUM
+read -p "Выбери номер сценария: " FILE_NUM
 SELECTED_SCRIPT=${FILES[$((FILE_NUM-1))]}
-python3 "$SELECTED_SCRIPT" "$MY_MAC"
+SCRIPT_NAME=$(basename "$SELECTED_SCRIPT")
+
+# ЛОГИКА РАЗДЕЛЕНИЯ РЕЖИМОВ
+if [[ "$SCRIPT_NAME" == *"stateful"* ]]; then
+    IS_ASTF=true
+    echo "Выбран профиль Stateful (ASTF). Генерация PCAP не требуется."
+else
+    IS_ASTF=false
+    echo "Выбран профиль Stateless (STL). Запуск генерации PCAP..."
+    python3 "$SELECTED_SCRIPT" "$MY_MAC"
+    [ -f /tmp/iot_traffic.pcap ] && chown $SUDO_USER:$SUDO_USER /tmp/iot_traffic.pcap
+fi
 
 echo "======================================================="
-echo "ГОТОВО! TRex настроен под сценарий: $(basename $SELECTED_SCRIPT)"
-echo "Запуск сервера: cd $TREX_PATH && sudo ./t-rex-64 -i $( [ "$MODE" == "1" ] && echo "--software" )"
-echo "Запуск консоли: cd $TREX_PATH && ./trex-console"
-echo "В консоли: push -f /tmp/iot_traffic.pcap -p 0 --force"
+echo "УСТАНОВКА ЗАВЕРШЕНА!"
+echo "Режим стенда: $( [ "$IS_ASTF" = true ] && echo "Advanced Stateful (ASTF)" || echo "Stateless (STL)" )"
+echo "======================================================="
+
+echo "ИНСТРУКЦИЯ ПО ЗАПУСКУ:"
+if [ "$IS_ASTF" = true ]; then
+    echo "1. Сервер (Окно 1):"
+    echo "   cd $TREX_PATH && sudo ./t-rex-64 -i --astf $( [ "$MODE" == "1" ] && echo "--software" )"
+    echo ""
+    echo "2. Управление (Окно 2):"
+    echo "   cd $TREX_PATH && ./trex-console"
+    echo "   # В консоли запусти профиль:"
+    echo "   start -f $LAUNCH_DIR/$SELECTED_SCRIPT -m 100"
+else
+    echo "1. Сервер (Окно 1):"
+    echo "   cd $TREX_PATH && sudo ./t-rex-64 -i $( [ "$MODE" == "1" ] && echo "--software" )"
+    echo ""
+    echo "2. Управление (Окно 2):"
+    echo "   cd $TREX_PATH && ./trex-console"
+    echo "   # В консоли отправь трафик:"
+    echo "   push -f /tmp/iot_traffic.pcap -p 0 --force"
+fi
 echo "======================================================="
