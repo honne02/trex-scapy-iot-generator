@@ -81,17 +81,28 @@ def run_rfc2544_test(server_ip="127.0.0.1", duration=120, warm_up=60):
 
         # Сбор финальных данных
         stats = c.get_stats()
-        # Данные задержки привязаны к pg_id = 12
-        lat_stats = stats['flow_stats'][12]['latency']
+        
+        # Проверяем, есть ли данные по нашему pg_id
+        if 12 in stats['flow_stats']:
+            flow_data = stats['flow_stats'][12]
+            rx_pkts = flow_data['rx_pkts']['total']
+            
+            print("\n" + "="*40)
+            print("   РЕЗУЛЬТАТЫ QoS (МЕТОДИКА RFC 2544)   ")
+            print("="*40)
+            print(f"Пакет на приеме (Rx): {rx_pkts}")
 
-        print("\n" + "="*40)
-        print("   РЕЗУЛЬТАТЫ QoS (МЕТОДИКА RFC 2544)   ")
-        print("="*40)
-        print(f"Средняя задержка (RTT):  {lat_stats['average']} мкс")
-        print(f"Джиттер (Jitter):       {lat_stats['jitter']} мкс")
-        print(f"Макс. задержка (Max):   {lat_stats['total_max']} мкс")
-        print(f"Мин. задержка (Min):    {lat_stats['total_min']} мкс")
-        print("="*40)
+            if 'latency' in flow_data and rx_pkts > 0:
+                lat_stats = flow_data['latency']
+                print(f"Средняя задержка (RTT):  {lat_stats['average']} мкс")
+                print(f"Джиттер (Jitter):       {lat_stats['jitter']} мкс")
+                print(f"Макс. задержка (Max):   {lat_stats['total_max']} мкс")
+                print(f"Мин. задержка (Min):    {lat_stats['total_min']} мкс")
+            else:
+                print("[!] Данные о задержке отсутствуют: пакеты не вернулись на порт Rx.")
+            print("="*40)
+        else:
+            print("[!] Ошибка: Статистика по pg_id=12 не найдена.")
 
     except STLError as e:
         print(f"[!] Ошибка TRex: {e}")
