@@ -31,7 +31,7 @@ from trex_stl_lib.api import *
 
 def run_rfc2544_test(server_ip="127.0.0.1", duration=120, warm_up=60):
     # Пути к заранее сгенерированным PCAP файлам
-    bg_pcap = "/tmp/iot_load_bidirectional.pcap"
+    bg_pcap = "/tmp/iot_bg_load.pcap"
     modbus_pcap = "/tmp/iot_modbus.pcap"
 
     # Проверка наличия файлов
