@@ -34,7 +34,7 @@ def run(mac_from_arg):
                             Raw(load=b"F"*1000))
             pkts.append(downlink_pkt)
 
-    output_path = '/tmp/iot_load_bidirectional.pcap'
+    output_path = '/tmp/iot_traffic.pcap'
     wrpcap(output_path, pkts)
     print(f"Успешно создано {len(pkts)} пакетов.")
     print(f"Uplink: 100 пакетов с уникальными MAC.")

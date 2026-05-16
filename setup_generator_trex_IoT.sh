@@ -141,12 +141,22 @@ if [[ "$SCRIPT_NAME" == *"stateful"* ]]; then
 elif [[ "$SCRIPT_PATH" == *"benchmarks"* ]]; then
     MODE_TYPE="BENCH"
     echo "Выбран автоматизированный тест RFC 2544. Подготовка PCAP..."
-    python3 "$SCENARIO_DIR/iot_load_bidirectional.py" "$MY_MAC1"
-    python3 "$SCENARIO_DIR/iot_industrial_modbus.py" "$MY_MAC1"
+    # Удаляем старые файлы перед бенчмарком, чтобы избежать проблем с правами (Permission denied)
+    rm -f /tmp/iot_bg_load.pcap /tmp/iot_modbus.pcap /tmp/iot_traffic.pcap 2>/dev/null
+    # 1. Генерируем фоновую нагрузку и переименовываем ее
+    echo " -> Генерация фонового шторма..."
+    python3 "$SCENARIO_DIR/iot_load_bidirectional.py" "$MY_MAC1" > /dev/null
+    mv -f /tmp/iot_traffic.pcap /tmp/iot_bg_load.pcap
+    # 2. Генерируем измерительный трафик (Modbus) и переименовываем его
+    echo " -> Генерация измерительного потока Modbus..."
+    python3 "$SCENARIO_DIR/iot_industrial_modbus.py" "$MY_MAC1" > /dev/null
     mv -f /tmp/iot_traffic.pcap /tmp/iot_modbus.pcap
+    # Выдаем права на новые файлы
+    chown $SUDO_USER:$SUDO_USER /tmp/iot_bg_load.pcap /tmp/iot_modbus.pcap
 else
     MODE_TYPE="STL"
     echo "Выбран профиль Stateless (STL). Запуск генерации PCAP..."
+    rm -f /tmp/iot_traffic.pcap
     python3 "$SELECTED_SCRIPT" "$MY_MAC1"
     [ -f /tmp/iot_traffic.pcap ] && chown $SUDO_USER:$SUDO_USER /tmp/iot_traffic.pcap
 fi
