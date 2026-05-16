@@ -40,6 +40,7 @@ def run(mac_from_arg):
     print(f"Uplink: 100 пакетов с уникальными MAC.")
     print(f"Downlink: 50 тяжелых TCP ответов.")
     print(f"Можно запустить в --dual режиме, если два порта.")
+    print(f"PCAP сохранен в: {output_path}")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
