@@ -119,7 +119,7 @@ fi
 cd $LAUNCH_DIR
 
 echo "=== [5/6] ДИНАМИЧЕСКИЙ ВЫБОР СЦЕНАРИЯ ==="
-FILES=($(ls $SCENARIO_DIR/*.py $BENCHMARK_DIR/*.py 2>/dev/null))
+FILES=($(ls $SCENARIO_DIR/*.py $BENCHMARK_DIR/*.py 2>/dev/null | grep -v "throughput_profile.py"))
 
 echo "Доступные сценарии и тесты:"
 for i in "${!FILES[@]}"; do
@@ -181,7 +181,11 @@ else
     echo ""
     echo "2. Управление (Окно 2):"
     echo "   cd $TREX_PATH && ./trex-console"
-    echo "   # В консоли отправь трафик:"
+    echo "   # --- В КОНСОЛИ TREX ДОСТУПНО 2 ВАРИАНТА ЗАПУСКА ---"
+    echo "   # Вариант А: Одиночный выстрел (проверка связности и счетчиков)"
     echo "   push -f /tmp/iot_traffic.pcap -p 0 --force"
+    echo ""
+    echo "   # Вариант Б: Непрерывный шторм (бинарный поиск по RFC 2544)"
+    echo "   start -f $LAUNCH_DIR/$SCENARIO_DIR/throughput_profile.py -p 0 -m 10%"
 fi
 echo "======================================================="
