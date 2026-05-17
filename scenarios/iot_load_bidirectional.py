@@ -1,3 +1,4 @@
+# Сценарий двунаправленной нагрузки с поддержкой -dual режима
 from scapy.all import *
 from scapy.layers.inet import IP, UDP, TCP, Ether
 import sys
