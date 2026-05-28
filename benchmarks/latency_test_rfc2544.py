@@ -29,6 +29,21 @@ add_trex_paths()
 # Теперь импортируем API TRex
 from trex_stl_lib.api import *
 
+LATENCY_PG_ID = 12
+
+def get_pg_stats(stats_section, pg_id):
+    return stats_section.get(pg_id) or stats_section.get(str(pg_id))
+
+def get_latency_stats(stats, flow_data, pg_id):
+    if 'latency' in flow_data:
+        return flow_data['latency']
+
+    pg_latency = get_pg_stats(stats.get('latency', {}), pg_id)
+    if isinstance(pg_latency, dict):
+        return pg_latency.get('latency', pg_latency)
+
+    return None
+
 def run_rfc2544_test(server_ip="127.0.0.1", duration=120, warm_up=60):
     # Пути к заранее сгенерированным PCAP файлам
     bg_pcap = "/tmp/iot_bg_load.pcap"
@@ -58,7 +73,7 @@ def run_rfc2544_test(server_ip="127.0.0.1", duration=120, warm_up=60):
         modbus_stream = STLStream(
             packet = STLPktBuilder(pkt = modbus_pcap),
             mode = STLTXCont(pps = 100), 
-            flow_stats = STLFlowLatencyStats(pg_id = 12) # Уникальный ID для статистики
+            flow_stats = STLFlowLatencyStats(pg_id = LATENCY_PG_ID) # Уникальный ID для статистики
         )
 
         c.add_streams([bg_stream, modbus_stream], ports = [0])
@@ -81,26 +96,29 @@ def run_rfc2544_test(server_ip="127.0.0.1", duration=120, warm_up=60):
         stats = c.get_stats()
         
         # Проверяем, есть ли данные по нашему pg_id
-        if 12 in stats['flow_stats']:
-            flow_data = stats['flow_stats'][12]
+        flow_data = get_pg_stats(stats.get('flow_stats', {}), LATENCY_PG_ID)
+        if flow_data:
             rx_pkts = flow_data['rx_pkts']['total']
+            lat_stats = get_latency_stats(stats, flow_data, LATENCY_PG_ID)
             
             print("\n" + "="*40)
             print("   РЕЗУЛЬТАТЫ QoS (МЕТОДИКА RFC 2544)   ")
             print("="*40)
             print(f"Пакет на приеме (Rx): {rx_pkts}")
 
-            if 'latency' in flow_data and rx_pkts > 0:
-                lat_stats = flow_data['latency']
+            if lat_stats and rx_pkts > 0:
                 print(f"Средняя задержка (RTT):  {lat_stats['average']} мкс")
                 print(f"Джиттер (Jitter):       {lat_stats['jitter']} мкс")
                 print(f"Макс. задержка (Max):   {lat_stats['total_max']} мкс")
                 print(f"Мин. задержка (Min):    {lat_stats['total_min']} мкс")
+            elif rx_pkts > 0:
+                print("[!] Пакеты вернулись, но TRex не отдал latency-метрики.")
+                print(f"[i] Проверь секцию stats['latency'] для pg_id={LATENCY_PG_ID}.")
             else:
                 print("[!] Данные о задержке отсутствуют: пакеты не вернулись на порт Rx.")
             print("="*40)
         else:
-            print("[!] Ошибка: Статистика по pg_id=12 не найдена.")
+            print(f"[!] Ошибка: Статистика по pg_id={LATENCY_PG_ID} не найдена.")
 
     except STLError as e:
         print(f"[!] Ошибка TRex: {e}")

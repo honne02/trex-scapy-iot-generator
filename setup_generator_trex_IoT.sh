@@ -98,6 +98,7 @@ if [ "$INTERFACE2" == "dummy" ]; then
   port_info:
     - dest_mac: "ff:ff:ff:ff:ff:ff"
       src_mac:  "$MY_MAC1"
+  lat: true
 EOF
 else
     # Режим Back-to-Back (один в другой)
@@ -113,6 +114,7 @@ else
       src_mac:  "$MY_MAC1"
     - dest_mac: "$MY_MAC1"
       src_mac:  "$MY_MAC2"
+  lat: true
 EOF
 fi
 
